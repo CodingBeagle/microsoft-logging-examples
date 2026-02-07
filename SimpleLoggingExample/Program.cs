@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Logging;
 using Serilog;
-using Serilog.Extensions.Logging;
+using System;
 
 // Configure Serilog with the console sink
 Log.Logger = new LoggerConfiguration()
