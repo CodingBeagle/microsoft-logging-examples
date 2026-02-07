@@ -8,6 +8,7 @@ A minimal ASP.NET Core API that uses Microsoft's `ILogger<T>` interface with Ser
 - Logging structured scalar values through `ILogger<T>` (e.g. `{UserId}`, `{Path}`)
 - The difference between default rendering and Serilog's `@` destructuring operator when logging complex objects
 - Nested object destructuring
+- `ILogger.BeginScope` with a dictionary to attach audit logging properties (including destructured objects) to all log events within a scope
 
 ## Packages used
 
@@ -44,7 +45,22 @@ Logs the same `WeatherForecast` object two ways to contrast the output:
 
 ### `GET /sensor`
 
-Logs a `SensorReading` that contains a nested `GeoLocation` object, demonstrating that the `@` operator recursively destructures the entire object graph.
+Uses `ILogger.BeginScope` to attach audit context to all log events within the scope. Demonstrates:
+
+- Passing a `Dictionary<string, object>` to `BeginScope` (the recommended approach — produces clean top-level properties without a redundant `Scope` wrapper)
+- A scalar scope property (`RequestId`)
+- A destructured scope property (`@Audit`) — the `@` prefix works in dictionary keys the same way it does in message templates
+- Multiple log statements within the scope, all inheriting the scope properties
+- Nested object destructuring on the `SensorReading` in the message template
+
+## `BeginScope` and `Enrich.FromLogContext()`
+
+`ILogger.BeginScope` pushes properties onto Serilog's `LogContext`. For these properties to actually appear in log output, the Serilog configuration **must** include `.Enrich.FromLogContext()`.
+
+There are two ways to call `BeginScope`:
+
+1. **Dictionary / `IEnumerable<KeyValuePair<string, object>>`** (recommended) — each key-value pair becomes a clean top-level property on the log event. Prefixing a key with `@` triggers destructuring.
+2. **String template** (e.g. `BeginScope("Processing {OrderId}", orderId)`) — this works but adds a redundant `Scope` property containing the formatted string alongside the individual properties, [duplicating data in the output](https://github.com/serilog/serilog-extensions-logging/issues/65).
 
 ## How `@` destructuring works through `ILogger`
 
