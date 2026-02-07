@@ -2,9 +2,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using System;
+using System.Collections.Generic;
 
-// Configure Serilog with the console sink
+// Configure Serilog with the console sink.
+// Enrich.FromLogContext() is required for ILogger.BeginScope properties to appear in log output.
 Log.Logger = new LoggerConfiguration()
+    .Enrich.FromLogContext()
     .WriteTo.Console()
     .CreateLogger();
 
@@ -42,8 +45,11 @@ app.MapGet("/weather", (ILogger<Program> logger) =>
     return forecast;
 });
 
-// This endpoint shows destructuring with a nested object, demonstrating that
-// Serilog recursively destructures the entire object graph.
+// This endpoint demonstrates BeginScope with audit logging properties.
+// BeginScope attaches structured properties to every log event within the scope.
+// Passing a Dictionary<string, object> is the recommended approach — it produces
+// clean top-level properties without a redundant "Scope" wrapper.
+// Prefixing a dictionary key with @ triggers Serilog's destructuring for that value.
 app.MapGet("/sensor", (ILogger<Program> logger) =>
 {
     var reading = new SensorReading(
@@ -52,7 +58,25 @@ app.MapGet("/sensor", (ILogger<Program> logger) =>
         TemperatureC: 18.3,
         RecordedAt: DateTime.UtcNow);
 
-    logger.LogInformation("Sensor reading received: {@Reading}", reading);
+    var audit = new AuditInfo(
+        OperatorId: "operator-7",
+        Action: "SensorReadingQuery",
+        Facility: "North Wing Lab");
+
+    using (logger.BeginScope(new Dictionary<string, object>
+    {
+        // Scalar value — attached as-is to every log event in this scope.
+        ["RequestId"] = Guid.NewGuid(),
+
+        // Destructured value — the @ prefix tells Serilog to serialize the
+        // AuditInfo object into its individual properties rather than calling ToString().
+        ["@Audit"] = audit
+    }))
+    {
+        // Both log events below will carry RequestId and the destructured Audit properties.
+        logger.LogInformation("Sensor reading received: {@Reading}", reading);
+        logger.LogInformation("Sensor data processed successfully");
+    }
 
     return reading;
 });
@@ -64,3 +88,5 @@ record WeatherForecast(string City, double TemperatureC, string Summary);
 record GeoLocation(double Latitude, double Longitude);
 
 record SensorReading(string SensorId, GeoLocation Location, double TemperatureC, DateTime RecordedAt);
+
+record AuditInfo(string OperatorId, string Action, string Facility);
