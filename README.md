@@ -9,6 +9,7 @@ Each project in this repository is a standalone example that demonstrates a spec
 | Project | Description |
 |---------|-------------|
 | [SimpleLoggingExample](SimpleLoggingExample/) | Minimal ASP.NET Core API using Serilog's console sink with structured logging and the `@` destructuring operator |
+| [SourceGeneratedLoggingExample](SourceGeneratedLoggingExample/) | High-performance logging using `[LoggerMessage]` source-generated methods with Serilog |
 
 ## Prerequisites
 
