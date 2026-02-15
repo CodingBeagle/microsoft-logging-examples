@@ -1,5 +1,7 @@
 using CustomConsoleProviderExample;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Logging;
+using System;
 
 var builder = WebApplication.CreateBuilder(args);
 

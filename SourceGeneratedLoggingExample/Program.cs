@@ -7,7 +7,7 @@ using System;
 // Configure Serilog with the console sink.
 // MinimumLevel.Debug() is set so that the Debug-level log message is visible in output.
 // Enrich.FromLogContext() is required for ILogger.BeginScope properties to appear in log output.
-Log.Logger = new LoggerConfiguration()
+Serilog.Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .Enrich.FromLogContext()
     .WriteTo.Console()
