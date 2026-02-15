@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="SimpleLoggingExample/SimpleLoggingExample.csproj" />
+  <Project Path="SourceGeneratedLoggingExample/SourceGeneratedLoggingExample.csproj" />
 </Solution>
