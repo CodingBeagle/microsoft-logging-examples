@@ -11,6 +11,7 @@ Each project in this repository is a standalone example that demonstrates a spec
 | [SimpleLoggingExample](SimpleLoggingExample/) | Minimal ASP.NET Core API using Serilog's console sink with structured logging and the `@` destructuring operator |
 | [SourceGeneratedLoggingExample](SourceGeneratedLoggingExample/) | High-performance logging using `[LoggerMessage]` source-generated methods with Serilog |
 | [CustomConsoleProviderExample](CustomConsoleProviderExample/) | Custom `ILoggerProvider` implementation: a colored console logger with `IOptionsMonitor<T>` live configuration — no third-party packages |
+| [LoggingTestsExample](LoggingTestsExample/) | Unit testing logging behaviour with `FakeLogger` and `FakeLoggerFactory` from `Microsoft.Extensions.Diagnostics.Testing` — no mocking frameworks required |
 
 ## Prerequisites
 
