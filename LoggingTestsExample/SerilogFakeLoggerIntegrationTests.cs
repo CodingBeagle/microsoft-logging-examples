@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Diagnostics.Testing;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
@@ -27,53 +27,55 @@ public class SerilogFakeLoggerIntegrationTests
     [Fact]
     public async Task GetRoot_LogsRequestDetails_VerifiedThroughFakeLoggerAlongsideSerilog()
     {
-        // Arrange — build a TestServer that registers both Serilog and FakeLogging as
+        // Arrange — build a WebApplication that registers both Serilog and FakeLogging as
         // concurrent providers. The Serilog configuration is identical to what you would
         // use in production (console sink, log context enrichment); FakeLogging is added
         // purely as a test-time seam with no effect on the real logging behaviour.
-        var builder = new WebHostBuilder()
-            .ConfigureLogging(logging =>
-            {
-                logging.ClearProviders();
+        var builder = WebApplication.CreateBuilder();
 
-                // Register Serilog with a console sink — the "production" pipeline.
-                // Any sink can be used here (file, Seq, in-memory, …). The point is
-                // that this configuration does not need to change for tests at all.
-                var serilogLogger = new LoggerConfiguration()
-                    .Enrich.FromLogContext()
-                    .WriteTo.Console()
-                    .CreateLogger();
+        // Configure the host to use TestServer
+        builder.WebHost.UseTestServer();
 
-                logging.AddSerilog(serilogLogger, dispose: true);
+        // Configure logging providers
+        builder.Logging.ClearProviders();
 
-                // Register FakeLogging as an *additional* provider alongside Serilog.
-                // This is the seam: every ILogger<T>.Log* call fans out to both
-                // providers, so FakeLogger receives the same structured events that
-                // Serilog already processed and forwarded to the console sink.
-                logging.Services.AddFakeLogging();
-            })
-            .Configure(app =>
-            {
-                // A minimal endpoint that mirrors the "/" route in SimpleLoggingExample.
-                // It logs a structured message with two named properties.
-                app.Run(async context =>
-                {
-                    var logger = context.RequestServices
-                        .GetRequiredService<ILogger<SerilogFakeLoggerIntegrationTests>>();
+        // Register Serilog with a console sink — the "production" pipeline.
+        // Any sink can be used here (file, Seq, in-memory, …). The point is
+        // that this configuration does not need to change for tests at all.
+        var serilogLogger = new LoggerConfiguration()
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .CreateLogger();
 
-                    // This single LogInformation call is received by both Serilog (which
-                    // writes it to the console) AND the FakeLogger provider (which stores
-                    // it in memory for assertion below).
-                    logger.LogInformation(
-                        "Request received for {Path} by user {UserId}",
-                        context.Request.Path.Value,
-                        42);
+        builder.Logging.AddSerilog(serilogLogger, dispose: true);
 
-                    await context.Response.WriteAsync("Hello!");
-                });
-            });
+        // Register FakeLogging as an *additional* provider alongside Serilog.
+        // This is the seam: every ILogger<T>.Log* call fans out to both
+        // providers, so FakeLogger receives the same structured events that
+        // Serilog already processed and forwarded to the console sink.
+        builder.Services.AddFakeLogging();
 
-        await using var server = new TestServer(builder);
+        var app = builder.Build();
+
+        // A minimal endpoint that mirrors the "/" route in SimpleLoggingExample.
+        // It logs a structured message with two named properties.
+        app.MapGet("/", async (HttpContext context, ILogger<SerilogFakeLoggerIntegrationTests> logger) =>
+        {
+            // This single LogInformation call is received by both Serilog (which
+            // writes it to the console) AND the FakeLogger provider (which stores
+            // it in memory for assertion below).
+            logger.LogInformation(
+                "Request received for {Path} by user {UserId}",
+                context.Request.Path.Value,
+                42);
+
+            await context.Response.WriteAsync("Hello!");
+        });
+
+        // Start the application to make TestServer available
+        await app.StartAsync();
+
+        var server = app.GetTestServer();
         using var client = server.CreateClient();
 
         // Act — issue a GET / request, which triggers the log statement above.
@@ -83,7 +85,7 @@ public class SerilogFakeLoggerIntegrationTests
         // Assert — retrieve the FakeLogCollector from the server's DI container.
         // It captured every log event produced during the request, in parallel with
         // Serilog writing those same events to the console.
-        var collector = server.Services.GetFakeLogCollector();
+        var collector = app.Services.GetFakeLogCollector();
         var records = collector.GetSnapshot();
 
         // Exactly one Information record matching our log template should be present.
@@ -97,7 +99,10 @@ public class SerilogFakeLoggerIntegrationTests
         // template, enabling precise assertions on individual parameters rather than
         // relying on the fully-rendered message string alone.
         Assert.NotNull(requestLog.StructuredState);
-        Assert.Contains(requestLog.StructuredState, kv => kv.Key == "Path"   && kv.Value == "/");
+        Assert.Contains(requestLog.StructuredState, kv => kv.Key == "Path" && kv.Value == "/");
         Assert.Contains(requestLog.StructuredState, kv => kv.Key == "UserId" && kv.Value == "42");
+
+        // Cleanup
+        await app.DisposeAsync();
     }
 }
