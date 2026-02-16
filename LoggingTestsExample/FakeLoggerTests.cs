@@ -1,6 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 namespace LoggingTestsExample;
@@ -129,8 +132,8 @@ public class FakeLoggerTests
             // Each scope entry is an IReadOnlyList<KeyValuePair<string, string>>.
             // Flatten all scope key-value pairs so we can assert on them.
             var scopeValues = record.Scopes
-                .SelectMany(s => s)
-                .ToDictionary(kv => kv.Key, kv => kv.Value);
+                .SelectMany(s => (IEnumerable<KeyValuePair<string, object>>)s)
+                .ToDictionary(kv => kv.Key, kv => kv.Value?.ToString() ?? string.Empty);
 
             Assert.Equal("TXN-42", scopeValues["TransactionId"]);
             Assert.Equal("CUST-7", scopeValues["CustomerId"]);
