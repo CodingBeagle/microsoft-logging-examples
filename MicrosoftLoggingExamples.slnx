@@ -2,4 +2,5 @@
   <Project Path="SimpleLoggingExample/SimpleLoggingExample.csproj" />
   <Project Path="SourceGeneratedLoggingExample/SourceGeneratedLoggingExample.csproj" />
   <Project Path="CustomConsoleProviderExample/CustomConsoleProviderExample.csproj" />
+  <Project Path="LoggingTestsExample/LoggingTestsExample.csproj" />
 </Solution>
